@@ -1,0 +1,12 @@
+INFO [2023-06-08 11:54:44] $x
+INFO [2023-06-08 11:54:44] list(rownames(hs), rownames(frt_rare), rownames(mm_rare_gc))
+INFO [2023-06-08 11:54:44] 
+INFO [2023-06-08 11:54:44] $category.names
+INFO [2023-06-08 11:54:44] c("Human", "Ferret", "Mouse")
+INFO [2023-06-08 11:54:44] 
+INFO [2023-06-08 11:54:44] $filename
+INFO [2023-06-08 11:54:44] [1] "gene_name_overlap.png"
+INFO [2023-06-08 11:54:44] 
+INFO [2023-06-08 11:54:44] $output
+INFO [2023-06-08 11:54:44] [1] TRUE
+INFO [2023-06-08 11:54:44] 
