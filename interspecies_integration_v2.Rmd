@@ -1,0 +1,195 @@
+---
+title: "Remake and adjust the figures in the manuscript"
+output: pdf_document
+---
+
+### Load packages and initialize
+```{r load_scripts, message=F, warning=F, echo=F, results='hide'}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(tidyverse)
+library(cowplot)
+library(Seurat)
+library(data.table)
+library(stringr)
+library(futile.logger)
+library(R.utils)
+library(pbapply)
+source("r/util.r", chdir = T)
+source("r/samples.r", chdir = T)
+source("r/clean_genes.R")
+theme_set(theme_cowplot()) # set the default theme for ggplot2
+
+# Color maps
+pal_use = "Rocket" # Heat Heat 2 Mako Rocket
+fp_cols = rev(colorspace::sequential_hcl(palette = pal_use, n = 20)) #rev(colorspace::heat_hcl(20)) #weather_heat(25) # Feature Plot colors
+#ct_cols  = rainbow8equal #brewer16## cell type colors
+genotype_cols  = c("grey20", "red3")
+options(timeout=3600) # default is to quit downloads taking longer than 60 seconds. here we make it an hour (way more than it should take)
+
+```
+
+
+# Mouse data
+# Get mouse data from GEO (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE103354) Montoro et al, 2018
+```{r }
+futile.logger::flog.info("Fetching mouse data [Montoro et al, 2018]")
+mm_file = "GSE103354_PulseSeq_UMI_counts.rds.gz"
+if(!file.exists(mm_file)) {download.file("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE103354&format=file&file=GSE103354%5FPulseSeq%5FUMI%5Fcounts%2Erds%2Egz", destfile = mm_file); futile.logger::flog.info("Decompressing.."); gunzip(mm_file, remove=FALSE)}
+mm_data = readRDS(gsub(".gz", "", mm_file))
+mm = CreateSeuratObject(counts = mm_data)
+rm(mm_data)
+mm_celltype <- str_split_fixed(colnames(mm), "_", 5)[, 5]
+names(mm_celltype) <- colnames(x = mm)
+mm = AddMetaData(object = mm, metadata = mm_celltype, col.name = "celltype")
+mm_rare = subset(mm, celltype %in% c("Ionocyte", "Neuroendocrine", "Tuft.1", "Tuft.2", "Tuft.progenitor"))
+mm_rare$celltype = gsub("^Tuft.*", "Tuft", mm_rare@meta.data$celltype)
+```
+
+
+# Get ferret data from GEO accession. Yuan et al, 2023
+```{r load_data_ferret}
+futile.logger::flog.info("Fetching ferret data [Yuan et al, 2013]")
+frt_file = "GSE233654_yuan_2023_ferret_ali.rds.gz"
+# wont run properly until GEO accession is public
+#if(!file.exists(frt_file)) {download.file("https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE233654&format=file&file=GSE233654%5Fyuan%5F2023%5Fferret%5Fali%2Erds%2Egz", destfile = frt_file)}
+#futile.logger::flog.info("Decompressing..")
+#gunzip(frt_file, remove=FALSE)
+frt = readRDS(gsub(".gz", "", frt_file))
+```
+
+
+# Get human data from GEO accession. Yuan et al, 2023
+```{r load_data_human}
+
+#curl -o local.rds "https://corpora-data-prod.s3.amazonaws.com/4e08dac3-2ecb-4906-a7a9-21c980c97e61/local.rds?AWSAccessKeyId=ASIATLYQ5N5X23RTCNTK&Signature=W0vO2J5w8l0zN2jbSOdS8F8JHPI%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEMb%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLXdlc3QtMiJHMEUCIQDDv0oriBacuoKSzj1MIXPL7lWuKVgVlHiPmxPT402bswIgeqY71tZjnux7TnmgJA2X94XM2RZfuhy9c6WBXfzhRzoq6wMIHxABGgwyMzE0MjY4NDY1NzUiDMs%2FJxHycTGcv8hP2CrIA0kR9Wq5SXpNXer0tYLDMLn%2F4BxnMptbnrj1p65D7QFuO8%2FKnKIhRLY%2BENJqV8HUwRox3P1Y4l1TrX6Td2tAj45ildhxeDDiWwxJmB3FvZUEwvTxKKCFS4jGd5NWubAPyVWnsY5DK7Zwemoj0%2BJ%2F7A0mFwB9SJBqCgb8iicf%2BHyBwoHRrldjGUPcv2nkeGe1u3qRAXbz6bAmctf8allqtA3X1woz9DoNKcZ9MZRQtJLR3JofoY6JT%2BW%2FzD1eaJsI%2FhDB8Hzqzhp9qJ9ocrJK2i%2F5%2FcLH%2FWKtnw9AMyz%2B5EjZCR4NAhDUrFa3reFC6ZgUsCRw8z%2FagRUlj101Fio7D758TmlDUroG%2F93pDkIZ3Pi%2FyiqKJqkzGRnezyRCpLd0QcEnwG%2FL9BjJ9oFGiuzx5HPTZT5AbitryjEz13OylZgv7OxzyAgNJxILc%2FLq6k6lIF60Z8oXs2BzdPyDWhvQmI7n402ix3fRn5Yl2vW1ZaYIHjhJtZtritfL8svAOjX8ZzHWJQv6OeFBYUe1gjx93JqzuANm9NjYUdNNq%2Fq8Vj9SF6DykZVUlZnbvgmyLws%2Fa65oEKoJMd6DcZSt3wZFDV%2F%2BeFf4KErk7zCz6aikBjqlAVShbShPwM8ICclst4H84nfb5hQrZR9W8FLjB%2BsvjHNkWDwaIIryi9%2BFNhjfkZCWrYv2yp8IuDqYjx%2BkT43VNPaJNUYoe0Xf6CB6gpdVtm%2Fo5%2FqrDgXnA5gDiOXyTeQ9gKNQZ6DTAWap8qI6zCEWEk%2FDt05SAN2hPMfFmY%2FNCemvFcbchYvxJg9uuhtaC2cBKfJxVZ4KdlzqMN2l7ppXPpVARf5CYw%3D%3D&Expires=1687388075"
+
+### Human, from lung cell atlas, sikemma et al, bioarxiv 2022
+hs_cts = fread("rare_cells/rarecells/X.csv")
+hs_cts = t(hs_cts)
+hs_genes = fread("rare_cells/rarecells/var.csv")
+hs_cells = fread("rare_cells/rarecells/obs.csv")
+rownames(hs_cts) = hs_genes$gene_symbols
+colnames(hs_cts) = hs_cells$V1
+hs = CreateSeuratObject(hs_cts)
+hs@meta.data = cbind(hs@meta.data, hs_cells)
+Idents(hs) = "ann_level_4"
+vg = get.variable.genes.umis(GetAssayData(hs, slot="counts"), ret.plot = T, residual.threshold = -0.01, fit.spline = F)
+VariableFeatures(hs) = vg$fit.data %>% arrange(residual) %>% head(n=2000) %>% dplyr::select(gene) %>% unlist() %>% unname() 
+hs$celltype = hs$ann_level_4
+```
+
+```{r convert_mouse_gene_to_human_gene}
+convert_mouse_to_human <- function(mouse_genes, return_matches_only=T)
+{
+	ortho = fread("http://www.informatics.jax.org/downloads/reports/HOM_MouseHumanSequence.rpt")
+	setnames(ortho, make.names(colnames(ortho)))  # fix spaces or special chars in the colnames
+	ortho = ortho %>% select(DB.Class.Key, Common.Organism.Name,  Symbol) %>% pivot_wider(names_from = Common.Organism.Name, values_from = Symbol, values_fn = list) %>% data.frame()
+	mg = data.frame("mouse"=mouse_genes)
+	output = merge(mg, ortho, by.x="mouse", by.y = "mouse..laboratory", all.x = T) #all.x is important to keep track of which genes don't match
+	output = output[match(mouse_genes, output$mouse),]
+	output$human[lengths(output$human) == 0] = NA  # important to replace NULLs with NAs, or unlist() will drop them, screwing up the ordering of genes
+	if(return_matches_only){
+		return(unlist(purrr::map(output$human, 1))) # note. if there's multiple human orthologs we arbitrarily return the first one.
+	}
+	output
+}
+```
+
+
+Integrate the data from the 3 species and save
+```{r overall_compare_rarecells}
+### Overall similarity between human and ferret rare cells.
+frt_rare = subset(frt, celltype %in% c("Tuft", "PNEC", "Ionocyte"))
+frt_rare$species = "ferret"
+frt_rare$celltype = gsub("PNEC", "Neuroendocrine", frt_rare$celltype)
+hs$species = "human"
+
+mg = convert_mouse_to_human(rownames(mm_rare))
+
+mm_rare_cts = GetAssayData(mm_rare, slot="counts")
+mm_rare_cts = mm_rare_cts[which(!is.na(mg)),]
+rownames(mm_rare_cts) = mg[!is.na(mg)]
+mm_rare_gc = CreateSeuratObject(mm_rare_cts, min.cells = 3, min.features = 200) # gc - genes converted
+mm_rare_gc = NormalizeData(mm_rare_gc)
+mm_rare_gc$species = "mouse"
+mm_rare_gc$celltype = mm_rare$celltype
+
+rareall = merge(frt_rare, hs) 
+rareall = merge(rareall, mm_rare_gc)
+inboth = intersect(clean_genes(rownames(frt)), rownames(hs))
+inboth = intersect(inboth, rownames(mm_rare_gc))
+
+# use one-way anova to identify species-specific genes
+d = FetchData(rareall, c(inboth, "species"))
+colnames(d) = make.names(colnames(d)) #"NKX3-2" "NKX3-1" wont work as formulae
+cl = parallel::makeCluster(8)
+parallel::clusterExport(cl=cl, list("d"),  envir=environment()) # this is memory intensive but there's not that many cells so it works.
+f = pblapply(setdiff(colnames(d), "species"), function(x) as.formula(sprintf("%s ~ species", x)))
+res = pblapply(f, function(x) summary(aov(x, data = d)), cl = cl) # parallelization isn't necessary but it saves some time. 4 min -> 30 sec
+pval = unlist(pblapply(res, function(x) x[[1]]$"Pr(>F)"[1]))
+fstat = unlist(pblapply(res, function(x) x[[1]]$"F value"[1]))
+anova_output = data.frame(gene = setdiff(colnames(d), "species"), pval=pval, fstat=fstat)
+anova_output = subset(anova_output, !is.na(fstat))
+anova_output$species_specific = anova_output$fstat < quantile(anova_output$fstat, 0.9, na.rm = T)
+write.table(anova_output, file="species_specific_anova_results.txt", sep = "\t", quote=F, row.names = F)
+genes_use = anova_output$gene[anova_output$species_specific]
+genes_use = gsub(".", "-", genes_use, fixed=T) # watch out for e.g NKX2.2 / NKX2-2
+vg = get.variable.genes.umis(GetAssayData(rareall, slot="counts")[genes_use,], ret.plot = T, residual.threshold = -0.01, fit.spline = F)
+VariableFeatures(rareall) = vg$fit.data %>% arrange(residual) %>% head(n=2000) %>% dplyr::select(gene) %>% unlist() %>% unname() 
+c("TRPM5", "ASCL3", "LTC4S", "PTGS1", "GNAT3", "ALOX5", "RGS1", "SH2D6", "BMX", "GFI1B", "CLDN10") %in% VariableFeatures(rareall)
+#iono = NormalizeData(object = iono,normalization.method = "LogNormalize", scale.factor = 10000) ### log2(TPM+1) normalization
+rareall = ScaleData(object = rareall, verbose = TRUE) ### scale data
+
+
+obj_list = SplitObject(rareall, split.by = "species")
+features = SelectIntegrationFeatures(object.list = obj_list)
+anchors = FindIntegrationAnchors(object.list = obj_list, anchor.features = features, dims = 1:10)
+rareall = IntegrateData(anchorset = anchors, dims = 1:10) #https://github.com/satijalab/seurat/issues/3930
+DefaultAssay(rareall) = "integrated"
+rareall = ScaleData(rareall, verbose = FALSE)
+rareall = RunPCA(rareall, features = VariableFeatures(rareall)) 
+
+
+
+### UMAP
+rareall = RunUMAP(rareall, reduction = "pca", dims = 1:10, min.dist = 0.25, n.neighbors = 100) 
+rareall$celltype_species = paste(rareall$celltype, rareall$species, sep=" - ")
+saveRDS(rareall, file="rareall.rds")
+
+ggsave(DimPlot(rareall, group.by = "celltype", reduction = "umap") + scale_color_manual("", values = brewer.pal(6, "Set1")), filename = "umap_celltype.pdf", width=7, height=6)
+
+ggsave(DimPlot(rareall, group.by = "celltype_species", reduction = "umap"), filename = "umap_celltype_species.pdf", width=7, height=6)
+ggsave(DimPlot(rareall, group.by = "species", reduction = "umap"), filename = "umap_species.pdf", width=7, height=6)
+```
+
+# Compare the rare cells of each type, particularly ionocytes
+```{r comparison_analysis}
+### Correlation matrix
+cm = cor(t(FetchData(rareall, VariableFeatures(rareall), slot = "data")))
+cm = data.frame(cm)
+cm$celltype = rareall$celltype
+cm$species = rareall$species
+cmg = cm %>% group_by(celltype, species) %>% summarize_all(.funs=mean)
+cmg = cmg %>% pivot_longer(cols = -c(celltype, species), names_to = "cell", values_to = "mean_cor")
+cmg$from_species = rareall$species[match(cmg$cell, colnames(rareall))]
+cmg$from_celltype = rareall$celltype[match(cmg$cell, colnames(rareall))]
+# Compute summary statistics for correlations:
+d = cmg %>% group_by(celltype, species, from_species, from_celltype) %>% 
+    dplyr::summarise(boxplot = list( setNames(boxplot.stats(mean_cor)$stats,                                  c('lower_whisker','lower_hinge','median','upper_hinge','upper_whisker') ) ) ) %>%
+    unnest_wider(boxplot)
+
+# grab the nine comparison p-values we need to label the plot:
+compars = data.frame(x = c("human-Ionocyte-human-Ionocyte", "mouse-Ionocyte-human-Ionocyte", "mouse-Ionocyte-human-Ionocyte", "human-Neuroendocrine-human-Neuroendocrine", "mouse-Neuroendocrine-human-Neuroendocrine", "mouse-Neuroendocrine-human-Neuroendocrine", "human-Tuft-human-Tuft", "mouse-Tuft-human-Tuft", "mouse-Tuft-human-Tuft"), y= c( "ferret-Ionocyte-human-Ionocyte", "human-Ionocyte-human-Ionocyte", "ferret-Ionocyte-human-Ionocyte", "ferret-Neuroendocrine-human-Neuroendocrine", "human-Neuroendocrine-human-Neuroendocrine", "ferret-Neuroendocrine-human-Neuroendocrine", "ferret-Tuft-human-Tuft", "human-Tuft-human-Tuft", "ferret-Tuft-human-Tuft"))
+cmg = mutate(cmg, group = paste(species, celltype, from_species, from_celltype, sep="-"))
+m = pairwise.wilcox.test(cmg$mean_cor, g = cmg$group)$p.value
+
+compars$pval = apply(compars, 1, function(row){m[row[1], row[2]]})
+compars$sig  = gtools::stars.pval(compars$pval)
+write.table(compars, file = "wilcoxon_pvals_correlation_comparison.csv", sep = ",", row.names = F, quote=F)
+
+d$species = factor(d$species, levels=c("human", "ferret", "mouse"))
+ggsave(ggplot(subset(d, from_species=="human"), aes(x=species, fill=celltype, ymin = lower_whisker, lower = lower_hinge, middle = median, upper = upper_hinge, ymax = upper_whisker))  + geom_boxplot(stat = "identity") + facet_wrap(~from_celltype) + ylab("Mean correlation with Human") + scale_fill_manual("", values = brewer.pal(3, "Set1")) + xlab(""), filename="mean_cor_by_species.pdf", width=8, height=4)
+```

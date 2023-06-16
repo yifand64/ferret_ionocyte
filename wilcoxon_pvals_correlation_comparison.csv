@@ -1,0 +1,10 @@
+x,y,pval,sig
+human-Ionocyte-human-Ionocyte,ferret-Ionocyte-human-Ionocyte,1.74266423515141e-05,***
+mouse-Ionocyte-human-Ionocyte,human-Ionocyte-human-Ionocyte,1.96851104799221e-37,***
+mouse-Ionocyte-human-Ionocyte,ferret-Ionocyte-human-Ionocyte,9.95812594134408e-30,***
+human-Neuroendocrine-human-Neuroendocrine,ferret-Neuroendocrine-human-Neuroendocrine,5.25991135936793e-28,***
+mouse-Neuroendocrine-human-Neuroendocrine,human-Neuroendocrine-human-Neuroendocrine,1.41391205909456e-28,***
+mouse-Neuroendocrine-human-Neuroendocrine,ferret-Neuroendocrine-human-Neuroendocrine,1, 
+human-Tuft-human-Tuft,ferret-Tuft-human-Tuft,2.34523593341638e-24,***
+mouse-Tuft-human-Tuft,human-Tuft-human-Tuft,1.45023129176344e-24,***
+mouse-Tuft-human-Tuft,ferret-Tuft-human-Tuft,1, 
