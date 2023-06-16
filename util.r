@@ -423,3 +423,94 @@ get_density <- function(x, y, n = 100) {
   ii <- cbind(ix, iy)
   return(dens$z[ii])
 }
+
+clean_genes = function(genes){
+  d  = data.frame(orig = genes, update=genes)
+  annot = read.delim("annot_table.txt")
+  annot = annot %>% filter(query_gene %in% d$orig)
+  d$update[match(annot$query_gene, d$update)] = annot$annot_geneonly
+  d$update[is.na(d$update)] = d$orig[is.na(d$update)]
+  d$update
+}
+
+get.variable.genes.umis <- function(umi.cts, residual.threshold=-0.25, UMIs.threshold=0, use.spline=F, batch=NULL, ret.plot=F, fit.spline=T, verbose=F)
+{
+  library(Matrix)
+  library(mgcv)
+  if(!is.null(batch))
+  {
+    v = as.vector(table(batch))
+    total_transcripts = data.frame(as.matrix(t(Matrix.utils::aggregate.Matrix(t(umi.cts), groupings = batch, fun="sum"))))
+    #total_transcripts = umi.cts %>% group_by(cyl) %>% summarize_all(.funs = sum) 
+    detection_frac = Matrix.utils::aggregate.Matrix(t(umi.cts > 0), groupings = batch, fun="sum")
+    detection_frac = data.frame(as.matrix(t(detection_frac / v)))
+    test_genes = rownames(detection_frac)[Matrix::rowSums(detection_frac > 0) == length(unique(batch))]
+    detection_frac = detection_frac[test_genes, ]
+    total_transcripts = total_transcripts[test_genes, ]
+    detection_frac$gene = rownames(detection_frac)
+    total_transcripts$gene = rownames(total_transcripts)
+    detection_frac = melt(detection_frac, id.vars="gene")
+    colnames(detection_frac) = c("gene", "batch", "alpha")
+    total_transcripts = melt(total_transcripts, id.vars="gene")
+    colnames(total_transcripts) = c("gene", "batch", "UMIs")
+    z = cbind(total_transcripts, detection_frac)[, c("gene", "batch", "alpha", "UMIs")]
+    if(verbose) info("Fitting logistic GLM (controlling for batch covariate)")
+    model.logit = glm(data = z, formula = alpha ~ log10(UMIs) + batch, family = binomial)
+    #model.logit = robust::glmRob(data = z, formula = alpha ~ log10(UMIs), family = binomial)
+    if(fit.spline){
+      if(verbose) info("Fitting spline quantile regression (controlling for batch covariate)")
+      model.gam = quantreg::rq(data = z, formula = alpha ~ splines::ns(log10(UMIs), df=15) + batch, tau=0.8)
+      #model.gam = mgcv::gam(data = z, formula = alpha ~ s(log10(UMIs)), method="REML")
+    }
+  }else{
+    if(verbose) info("Computing gene dection rates (alphas)..")
+    z = data.frame(UMIs = Matrix::rowSums(umi.cts), alpha= Matrix::rowSums(umi.cts>0) / ncol(umi.cts))
+    z = subset(z, UMIs > 0 | alpha > 0)
+    if(verbose) info("Fitting GLMs..")
+    model.logit = glm(data = z, formula = alpha ~ log10(UMIs), family = binomial)
+    #model.logit = robust::glmRob(data = z, formula = alpha ~ log10(UMIs), family = binomial)
+    if(fit.spline){
+      model.gam = quantreg::rq(data = z, formula = alpha ~ splines::ns(log10(UMIs), df=15), tau=0.8)
+      #model.gam = mgcv::gam(data = z, formula = alpha ~ s(log10(UMIs)), method="REML")
+    }
+  }
+  
+  
+  if(use.spline & fit.spline){
+    if(verbose) info("use.spline is ON. Using GAM fit (blue), logit in red")
+    z$predicted = predict(object = model.gam, z, type="response")
+    z$predicted.alternate = predict(object = model.logit, z, type="response")
+    z$residual = model.gam$residuals
+  }else{
+    if(verbose)  info("use.spline is OFF. Using logit fit (blue), GAM in red")
+    z$predicted = predict(model.logit, type="response") #predict(object = model.logit, z, type="response")
+    z$residual = residuals(model.logit, type="response") #model.logit$residuals
+    if(fit.spline){z$predicted.alternate = predict(object = model.gam, z, type="response")}
+  }
+  if(is.null(batch)) {z$gene = rownames(z)}
+  outliers = subset(z, residual < residual.threshold & UMIs > UMIs.threshold)
+  g = ggplot(z, aes(x=log10(UMIs), y=alpha, label=gene)) + geom_point(color="grey50", size=0.5, stroke=0) + 
+    ylim(c(0,1)) + geom_line(aes(y=predicted), size=0.5, color="blue", linetype="dotted")  + 
+    geom_text(data=outliers, color="black", size=1.5, vjust=2)
+  if(fit.spline &! use.spline){geom_line(aes(y=predicted.alternate), size=0.5, color="red", linetype="dotted")}
+  if(!is.null(batch)){g = g + facet_wrap(~batch)}
+  if(!ret.plot){print(g)}
+  rv = unique(unlist(lapply(rownames(outliers), extract.field, 1, delim="_")))
+  if(ret.plot){return(list("var.genes"=rv, "plot"=g, "fit.data"=z, "logit"=model.logit))}
+  rv
+}
+
+convert_mouse_to_human <- function(mouse_genes, return_matches_only=T)
+{
+  ortho = fread("http://www.informatics.jax.org/downloads/reports/HOM_MouseHumanSequence.rpt")
+  setnames(ortho, make.names(colnames(ortho)))  # fix spaces or special chars in the colnames
+  ortho = ortho %>% select(DB.Class.Key, Common.Organism.Name,  Symbol) %>% pivot_wider(names_from = Common.Organism.Name, values_from = Symbol, values_fn = list) %>% data.frame()
+  mg = data.frame("mouse"=mouse_genes)
+  output = merge(mg, ortho, by.x="mouse", by.y = "mouse..laboratory", all.x = T) #all.x is important to keep track of which genes don't match
+  output = output[match(mouse_genes, output$mouse),]
+  output$human[lengths(output$human) == 0] = NA  # important to replace NULLs with NAs, or unlist() will drop them, screwing up the ordering of genes
+  if(return_matches_only){
+    return(unlist(purrr::map(output$human, 1))) # note. if there's multiple human orthologs we arbitrarily return the first one.
+  }
+  output
+}

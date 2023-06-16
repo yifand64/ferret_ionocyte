@@ -17,9 +17,7 @@ library(stringr)
 library(futile.logger)
 library(R.utils)
 library(pbapply)
-source("r/util.r", chdir = T)
-source("r/samples.r", chdir = T)
-source("r/clean_genes.R")
+source("util.r", chdir = T)
 theme_set(theme_cowplot()) # set the default theme for ggplot2
 
 # Color maps
@@ -79,23 +77,6 @@ Idents(hs) = "ann_level_4"
 vg = get.variable.genes.umis(GetAssayData(hs, slot="counts"), ret.plot = T, residual.threshold = -0.01, fit.spline = F)
 VariableFeatures(hs) = vg$fit.data %>% arrange(residual) %>% head(n=2000) %>% dplyr::select(gene) %>% unlist() %>% unname() 
 hs$celltype = hs$ann_level_4
-```
-
-```{r convert_mouse_gene_to_human_gene}
-convert_mouse_to_human <- function(mouse_genes, return_matches_only=T)
-{
-	ortho = fread("http://www.informatics.jax.org/downloads/reports/HOM_MouseHumanSequence.rpt")
-	setnames(ortho, make.names(colnames(ortho)))  # fix spaces or special chars in the colnames
-	ortho = ortho %>% select(DB.Class.Key, Common.Organism.Name,  Symbol) %>% pivot_wider(names_from = Common.Organism.Name, values_from = Symbol, values_fn = list) %>% data.frame()
-	mg = data.frame("mouse"=mouse_genes)
-	output = merge(mg, ortho, by.x="mouse", by.y = "mouse..laboratory", all.x = T) #all.x is important to keep track of which genes don't match
-	output = output[match(mouse_genes, output$mouse),]
-	output$human[lengths(output$human) == 0] = NA  # important to replace NULLs with NAs, or unlist() will drop them, screwing up the ordering of genes
-	if(return_matches_only){
-		return(unlist(purrr::map(output$human, 1))) # note. if there's multiple human orthologs we arbitrarily return the first one.
-	}
-	output
-}
 ```
 
 
@@ -158,11 +139,6 @@ rareall = RunPCA(rareall, features = VariableFeatures(rareall))
 rareall = RunUMAP(rareall, reduction = "pca", dims = 1:10, min.dist = 0.25, n.neighbors = 100) 
 rareall$celltype_species = paste(rareall$celltype, rareall$species, sep=" - ")
 saveRDS(rareall, file="rareall.rds")
-
-ggsave(DimPlot(rareall, group.by = "celltype", reduction = "umap") + scale_color_manual("", values = brewer.pal(6, "Set1")), filename = "umap_celltype.pdf", width=7, height=6)
-
-ggsave(DimPlot(rareall, group.by = "celltype_species", reduction = "umap"), filename = "umap_celltype_species.pdf", width=7, height=6)
-ggsave(DimPlot(rareall, group.by = "species", reduction = "umap"), filename = "umap_species.pdf", width=7, height=6)
 ```
 
 # Compare the rare cells of each type, particularly ionocytes
