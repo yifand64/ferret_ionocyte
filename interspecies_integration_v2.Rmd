@@ -3,7 +3,7 @@ title: "Remake and adjust the figures in the manuscript"
 output: pdf_document
 ---
 
-### Load packages and initialize
+# Load packages and initialize
 ```{r load_scripts, message=F, warning=F, echo=F, results='hide'}
 library(readr)
 library(dplyr)
@@ -30,8 +30,7 @@ options(timeout=3600) # default is to quit downloads taking longer than 60 secon
 ```
 
 
-# Mouse data
-# Get mouse data from GEO (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE103354) Montoro et al, 2018
+# Get mouse data from GEO accession: GSE103354. Montoro et al, 2018
 ```{r }
 futile.logger::flog.info("Fetching mouse data [Montoro et al, 2018]")
 mm_file = "GSE103354_PulseSeq_UMI_counts.rds.gz"
@@ -47,7 +46,7 @@ mm_rare$celltype = gsub("^Tuft.*", "Tuft", mm_rare@meta.data$celltype)
 ```
 
 
-# Get ferret data from GEO accession. Yuan et al, 2023
+# Get ferret data from GEO accession: GSE233654. Yuan et al, 2023
 ```{r load_data_ferret}
 futile.logger::flog.info("Fetching ferret data [Yuan et al, 2013]")
 frt_file = "GSE233654_yuan_2023_ferret_ali.rds.gz"
@@ -59,10 +58,12 @@ frt = readRDS(gsub(".gz", "", frt_file))
 ```
 
 
-# Get human data from GEO accession. Yuan et al, 2023
+# Get human data from The integrated Human Lung Cell Atlas. Yuan et al, 2023
 ```{r load_data_human}
 
-#curl -o local.rds "https://corpora-data-prod.s3.amazonaws.com/4e08dac3-2ecb-4906-a7a9-21c980c97e61/local.rds?AWSAccessKeyId=ASIATLYQ5N5X23RTCNTK&Signature=W0vO2J5w8l0zN2jbSOdS8F8JHPI%3D&x-amz-security-token=IQoJb3JpZ2luX2VjEMb%2F%2F%2F%2F%2F%2F%2F%2F%2F%2FwEaCXVzLXdlc3QtMiJHMEUCIQDDv0oriBacuoKSzj1MIXPL7lWuKVgVlHiPmxPT402bswIgeqY71tZjnux7TnmgJA2X94XM2RZfuhy9c6WBXfzhRzoq6wMIHxABGgwyMzE0MjY4NDY1NzUiDMs%2FJxHycTGcv8hP2CrIA0kR9Wq5SXpNXer0tYLDMLn%2F4BxnMptbnrj1p65D7QFuO8%2FKnKIhRLY%2BENJqV8HUwRox3P1Y4l1TrX6Td2tAj45ildhxeDDiWwxJmB3FvZUEwvTxKKCFS4jGd5NWubAPyVWnsY5DK7Zwemoj0%2BJ%2F7A0mFwB9SJBqCgb8iicf%2BHyBwoHRrldjGUPcv2nkeGe1u3qRAXbz6bAmctf8allqtA3X1woz9DoNKcZ9MZRQtJLR3JofoY6JT%2BW%2FzD1eaJsI%2FhDB8Hzqzhp9qJ9ocrJK2i%2F5%2FcLH%2FWKtnw9AMyz%2B5EjZCR4NAhDUrFa3reFC6ZgUsCRw8z%2FagRUlj101Fio7D758TmlDUroG%2F93pDkIZ3Pi%2FyiqKJqkzGRnezyRCpLd0QcEnwG%2FL9BjJ9oFGiuzx5HPTZT5AbitryjEz13OylZgv7OxzyAgNJxILc%2FLq6k6lIF60Z8oXs2BzdPyDWhvQmI7n402ix3fRn5Yl2vW1ZaYIHjhJtZtritfL8svAOjX8ZzHWJQv6OeFBYUe1gjx93JqzuANm9NjYUdNNq%2Fq8Vj9SF6DykZVUlZnbvgmyLws%2Fa65oEKoJMd6DcZSt3wZFDV%2F%2BeFf4KErk7zCz6aikBjqlAVShbShPwM8ICclst4H84nfb5hQrZR9W8FLjB%2BsvjHNkWDwaIIryi9%2BFNhjfkZCWrYv2yp8IuDqYjx%2BkT43VNPaJNUYoe0Xf6CB6gpdVtm%2Fo5%2FqrDgXnA5gDiOXyTeQ9gKNQZ6DTAWap8qI6zCEWEk%2FDt05SAN2hPMfFmY%2FNCemvFcbchYvxJg9uuhtaC2cBKfJxVZ4KdlzqMN2l7ppXPpVARf5CYw%3D%3D&Expires=1687388075"
+#https://cellxgene.cziscience.com/collections/6f6d381a-7701-4781-935c-db10d30de293
+# download the full h5ad file
+# run rare_cells.py on the h5ad file to obtain the feature table 
 
 ### Human, from lung cell atlas, sikemma et al, bioarxiv 2022
 hs_cts = fread("rare_cells/rarecells/X.csv")
