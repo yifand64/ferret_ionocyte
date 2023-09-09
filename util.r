@@ -166,8 +166,8 @@ group.means <- function(counts, groups, fn=mean, use.data.table=F)
 	return(r)
 }
 
-source("color.r", chdir = T)
-source("plot.r", chdir = T)
+#source("color.r", chdir = T)
+#source("plot.r", chdir = T)
 
 ### given a dataframe full of strings (Gene ids), and a list of strings (gene ids),
 ### return a new dataframe preserving the column-wise order, but removing
@@ -433,6 +433,12 @@ clean_genes = function(genes){
   d$update
 }
 
+
+extract.field=function(string,field=1,delim="_", fixed=T) {
+  return(strsplit(string,delim, fixed=fixed)[[1]][field])
+}
+
+
 get.variable.genes.umis <- function(umi.cts, residual.threshold=-0.25, UMIs.threshold=0, use.spline=F, batch=NULL, ret.plot=F, fit.spline=T, verbose=F)
 {
   library(Matrix)
@@ -499,6 +505,8 @@ get.variable.genes.umis <- function(umi.cts, residual.threshold=-0.25, UMIs.thre
   if(ret.plot){return(list("var.genes"=rv, "plot"=g, "fit.data"=z, "logit"=model.logit))}
   rv
 }
+
+
 
 convert_mouse_to_human <- function(mouse_genes, return_matches_only=T)
 {
