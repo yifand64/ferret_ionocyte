@@ -1,4 +1,4 @@
-# ferret_ionocyte
+# Ferret Ionocyte
 Code repository for interspecies comparison between mouse, ferret, and human
 This code repository contains R code for the analysis of 4180 pulmonary rare cells (Ionocyte, neuroendocrine, and tuft) from mouse, human, and ferret. The easiest way to run it is to clone the repo (download ZIP button at top) and open the file 'interspecies_integration_v2.Rmd' in RStudio. Prior to running the code, you should obtain the rare cell feature table for mouse, human, and ferret listed below either through GEO or Human Lung Cell Atlas. Each code chunk can then be run by clicking the run button (top right corner of each chunk).
 
